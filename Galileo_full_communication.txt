@@ -1,0 +1,160 @@
+#include <SPI.h>
+#include <Ethernet.h>
+
+// include <Process.h>
+
+// the media access control (ethernet hardware) address for the shield:
+byte mac[] = { 0x98, 0x4F, 0xEE, 0x01, 0xDE, 0xFD };  
+
+//the IP address for the shield:
+byte ip[] = { 169, 254, 26, 102 };    
+
+byte dns[] = { 8, 8, 8, 8 };
+byte gateway[] = { 169, 254, 26, 1 };    
+byte subnet[] = { 255, 255, 255, 0 };    
+
+int red_led = 12;
+int green_led = 13;
+
+
+int sensorPin = A5;
+double alpha = 0.75;
+int period = 100;
+double change = 0.0;
+double minval = 0.0;
+
+  int counter = 0;
+  static const int max_counter = 1;
+  char buf[1000];
+
+  double lastRead = 0.0;
+  
+  unsigned long initialTime;
+  unsigned long endTime; 
+  
+  unsigned long readLatency = 10;
+  
+  boolean debug = true;
+  
+
+void setup()
+{
+
+  Ethernet.begin(mac, ip, dns, gateway, subnet);
+  //Ethernet.begin(mac, ip);
+  Serial.begin(9600);      // open the serial port at 9600 bps:
+  pinMode(red_led, OUTPUT);
+  pinMode(green_led, OUTPUT);  
+  
+  
+  
+}
+
+void loop () {
+  
+  
+    initialTime = millis();
+//     EthernetClient client;
+     lastRead = readAndSendHeart();
+     
+     digitalWrite(red_led, LOW);    // turn the LED off by making the voltage LOW
+     digitalWrite(green_led, LOW);    // turn the LED off by making the voltage LOW
+
+    /* if ( lastRead > 988.0 && lastRead < 991.9 ) {
+
+       sprintf(buf,"%s&value%d=%2.6f",buf, counter, lastRead );
+     
+
+     } 
+     if (max_counter == counter ) {
+       sprintf(buf,"%s\n",buf);
+       counter =0;
+       int errorCode = system(buf);
+  // int errorCode = 0;
+
+if ( debug ) {
+       Serial.print("Sending To Server ");
+       Serial.print(buf);
+       Serial.print("   code:");
+       Serial.print(errorCode);
+       Serial.println("");
+}
+*/
+
+       sprintf(buf,"curl http://169.254.26.128:3000/ecgs/2/new_ecgs?value=%2.6f",lastRead);
+       
+         int errorCode = system(buf);
+         if (errorCode == 0)
+         {
+           digitalWrite(green_led, HIGH);   // turn the LED on (HIGH is the voltage level)
+         } else {
+             digitalWrite(red_led, HIGH);   // turn the LED on (HIGH is the voltage level)
+         }       
+
+      // sprintf(buf,"curl http://169.254.26.128:3000/ecgs/2/new_ecgs?value=%2.6f",lastRead);
+
+   //  }
+     
+     endTime = millis();
+
+if ( debug ) {
+
+    Serial.print("Galileo IP: ");
+    Serial.println(Ethernet.localIP());
+    Serial.print("Initial time: ");
+    Serial.println(initialTime);
+    Serial.print("End time: ");
+    Serial.println(endTime);
+    Serial.print("difference ");    
+    endTime = endTime - initialTime;
+    Serial.println(endTime); 
+
+    Serial.print("Delay: ");    
+    Serial.println(endTime > readLatency ? 0 : readLatency - endTime);
+    
+}
+
+     endTime = endTime - initialTime;
+
+     
+     delay( endTime > readLatency ? 0 : readLatency - endTime );
+    
+     //delay( 100);
+
+ }
+
+
+//int webUnixTime (EthernetClient &client)
+int readAndSendHeart ()
+{
+
+
+ // Serial.println(Ethernet.localIP());
+ // Serial.println("Trying to connect to the server \n");
+ 
+ 
+    static double oldValue = 0;
+    static double oldChange = 0;
+ 
+    int rawValue = analogRead (sensorPin);
+    double value = alpha * oldValue + (1 - alpha) * rawValue;
+ 
+ if ( debug ) {
+ 
+    Serial.print (rawValue);
+    Serial.print (",");
+    Serial.println (value);
+
+//value = 232.12;
+
+ }
+
+    oldValue = value;
+ 
+
+
+
+     
+ return   (value -970)*6;
+
+}
